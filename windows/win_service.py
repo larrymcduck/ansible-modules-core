@@ -46,13 +46,21 @@ options:
   state:
     description:
       - C(started)/C(stopped) are idempotent actions that will not run
-        commands unless necessary.  C(restarted) will always bounce the
+        commands unless necessary. C(restarted) will always bounce the
         service.
     required: false
     choices:
       - started
       - stopped
       - restarted
+      - create
+    default: null
+    aliases: []
+  path:
+    description:
+      - If state is create, this is needed as the binpath of the
+        service.
+    required: false
     default: null
     aliases: []
 author: "Chris Hoffman (@chrishoffman)"
@@ -69,4 +77,18 @@ EXAMPLES = '''
     name: spooler
     start_mode: auto
     state: started
+
+  # Create a service
+  win_service:
+    name: new_service
+    start_mode: auto
+    state: create
+    path: C:/path/to/service.exe
+
+  # Create and start service
+  win_service:
+    name: new_service
+    start_mode: auto
+    state: create_and_start
+    path: C:/path/to/service.exe
 '''
