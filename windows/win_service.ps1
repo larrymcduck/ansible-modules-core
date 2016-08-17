@@ -27,12 +27,18 @@ Set-Attr $result "changed" $false;
 $name = Get-Attr $params "name" -failifempty $true
 $state = Get-Attr $params "state" $false
 $startMode = Get-Attr $params "start_mode" $false
+$path = Get-Attr $params "path" $null
 
 If ($state) {
     $state = $state.ToString().ToLower()
-    If (($state -ne 'started') -and ($state -ne 'stopped') -and ($state -ne 'restarted')) {
-        Fail-Json $result "state is '$state'; must be 'started', 'stopped', or 'restarted'"
+    If (($state -ne 'started') -and ($state -ne 'stopped') -and ($state -ne 'restarted') -and ($state -ne 'create') -and ($state -ne 'create_and_start')) {
+        Fail-Json $result "state is '$state'; must be 'started', 'stopped', 'restarted', 'create', or 'create_and_start'"
     }
+}
+
+If($state.Contains('create') -and [string]::IsNullOrEmpty($path))
+{
+    Fail-Json $result "need to create service, but path is null or empty"
 }
 
 If ($startMode) {
@@ -43,10 +49,21 @@ If ($startMode) {
 }
 
 $svcName = $name
+
+if ($state.Contains('create'))
+{
+    New-Service -Name $svcName -BinaryPathName $path -StartupType $startMode -ErrorAction SilentlyContinue
+}
+
 $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
 If (-not $svc) {
     Fail-Json $result "Service '$svcName' not installed"
 }
+elseif ($state.Contains('create'))
+{
+    Set-Attr $result "changed" $true;
+}
+
 # Use service name instead of display name for remaining actions.
 If ($svcName -ne $svc.ServiceName) {
     $svcName = $svc.ServiceName
@@ -71,7 +88,7 @@ Else {
 }
 
 If ($state) {
-    If ($state -eq "started" -and $svc.Status -ne "Running") {
+    If (($state -eq "started" -or $state -eq 'create_and_start') -and $svc.Status -ne "Running") {
         try {
             Start-Service -Name $svcName -ErrorAction Stop
         }
